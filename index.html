@@ -1,814 +1,110 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kanban - Produção Mouse Ultraleve</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts: Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          },
-          colors: {
-            navy: {
-              800: '#0f2038',
-              900: '#0b1626',
-            },
-            urgente: '#e63946',
-            alta: '#f77f00',
-            media: '#ffb703',
-            baixa: '#2a9d8f',
-          }
-        }
-      }
-    }
-  </script>
-
-  <style>
-    /* Custom scrollbar styling */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f5f9;
-      border-radius: 8px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 8px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-
-    /* Drag and Drop styles */
-    .dragging {
-      opacity: 0.4;
-      transform: scale(0.98);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
-    }
-    .drag-over {
-      background-color: #f0fdf4 !important;
-      border-color: #22c55e !important;
-    }
-
-    /* Urgent pulse indicator */
-    @keyframes pulse-subtle {
-      0%, 100% { border-color: rgba(230, 57, 70, 0.4); }
-      50% { border-color: rgba(230, 57, 70, 1); box-shadow: 0 0 12px rgba(230, 57, 70, 0.25); }
-    }
-    .urgent-highlight {
-      animation: pulse-subtle 2s infinite ease-in-out;
-    }
-
-    /* Transition effects */
-    .kanban-card {
-      transition: all 0.2s ease-in-out;
-    }
-    .kanban-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-    }
-  </style>
-</head>
-<body class="bg-[#f4f7fb] text-slate-800 font-sans antialiased min-h-screen flex flex-col">
-
-  <!-- Top Navigation / Application Header -->
-  <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-sm">
-    <div class="flex items-center space-x-3">
-      <div class="bg-blue-600 text-white p-2 rounded-lg flex items-center justify-center shadow-md">
-        <i class="fa-solid fa-boxes-stacked text-xl"></i>
-      </div>
-      <div>
-        <h1 class="font-bold text-slate-900 text-lg leading-tight">Sistema Kanban Logístico – SENAI</h1>
-        <p class="text-xs text-slate-500 font-medium">Gestão de Pedidos & Priorização de Compras Críticas</p>
-      </div>
-    </div>
-
-    <!-- Quick Global Actions -->
-    <div class="flex items-center gap-3">
-      <button id="resetDataBtn" onclick="resetToDefaultData()" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2">
-        <i class="fa-solid fa-rotate-left"></i> Restaurar Dados Originais
-      </button>
-      <button onclick="openModal()" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-2">
-        <i class="fa-solid fa-plus text-sm"></i> Novo Pedido
-      </button>
-    </div>
-  </header>
-
-  <!-- Main Content Area -->
-  <main class="flex-1 p-4 md:p-6 max-w-[1920px] mx-auto w-full flex flex-col lg:flex-row gap-6">
-
-    <!-- LEFT SIDEBAR: Controls, Metrics, Legends, Collaborators -->
-    <aside class="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
-      
-      <!-- Top Card: Header & Total Counter (Dark Navy) -->
-      <div class="bg-navy-800 text-white rounded-2xl p-5 shadow-lg border border-slate-800 relative overflow-hidden">
-        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-blue-500/10 rounded-full blur-xl pointer-events-none"></div>
-        
-        <h2 class="text-2xl font-extrabold tracking-tight">Kanban</h2>
-        <p class="text-slate-300 font-medium text-sm mt-0.5 mb-5 flex items-center gap-2">
-          <span>Produção – Mouse Ultraleve</span>
-        </p>
-
-        <div class="bg-navy-900/80 rounded-xl p-4 border border-slate-700/60 flex items-center justify-between">
-          <div>
-            <span class="text-xs uppercase tracking-wider font-semibold text-slate-400 block mb-0.5">Total de demandas</span>
-            <span id="totalDemandasCount" class="text-3xl font-black text-white tracking-tight">28</span>
-          </div>
-          <div class="w-12 h-12 rounded-full border-4 border-blue-500 border-t-slate-700 flex items-center justify-center bg-navy-800 shadow-inner">
-            <i class="fa-solid fa-gauge-high text-blue-400 text-base"></i>
-          </div>
-        </div>
-      </div>
-
-      <!-- Expedite Swimlane / Urgent Highlight Toggle Card -->
-      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold">
-              <i class="fa-solid fa-bolt"></i>
-            </div>
-            <div>
-              <span class="text-xs font-bold text-slate-900 block leading-tight">Raia Expedite (Urgentes)</span>
-              <span class="text-[11px] text-slate-500">Destacar topo do quadro</span>
-            </div>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="expediteToggle" class="sr-only peer" onchange="toggleExpediteMode()">
-            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-          </label>
-        </div>
-      </div>
-
-      <!-- Filters & Search Card -->
-      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 space-y-3">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Filtros de Pesquisa</h3>
-        
-        <!-- Search Input -->
-        <div class="relative">
-          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-          <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Buscar pedido, item ou código..." class="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
-        </div>
-
-        <!-- Filter Selects -->
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Prioridade</label>
-            <select id="priorityFilter" onchange="applyFilters()" class="w-full py-1.5 px-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
-              <option value="todos">Todas</option>
-              <option value="urgente">🚨 Urgente</option>
-              <option value="alta">🟧 Alta</option>
-              <option value="media">🟨 Média</option>
-              <option value="baixa">🟩 Baixa</option>
-            </select>
-          </div>
-          <div>
-            <label class="text-[10px] font-bold text-slate-500 block mb-1 uppercase">Responsável</label>
-            <select id="collaboratorFilter" onchange="applyFilters()" class="w-full py-1.5 px-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
-              <option value="todos">Todos</option>
-              <option value="Carlos">Carlos</option>
-              <option value="Fernanda">Fernanda</option>
-              <option value="João">João</option>
-              <option value="Maria">Maria</option>
-              <option value="Ricardo">Ricardo</option>
-              <option value="Ana">Ana</option>
-              <option value="Letícia">Letícia</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Legend Box (Legenda) -->
-      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-        <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
-          <span>Legenda</span>
-          <i class="fa-solid fa-circle-info text-slate-400 text-xs"></i>
-        </h3>
-        <ul class="space-y-2.5 text-xs">
-          <li class="flex items-start gap-2.5">
-            <span class="inline-flex items-center gap-1 bg-red-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] uppercase shadow-sm">
-              <i class="fa-solid fa-exclamation text-[9px]"></i> Urgente
-            </span>
-            <span class="text-slate-600 text-[11px] leading-tight pt-0.5">Prazo crítico / Impacta o cliente</span>
-          </li>
-          <li class="flex items-start gap-2.5">
-            <span class="inline-flex items-center gap-1 bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] uppercase shadow-sm">
-              <i class="fa-solid fa-angle-up text-[9px]"></i> Alta
-            </span>
-            <span class="text-slate-600 text-[11px] leading-tight pt-0.5">Importante / Próximo do prazo</span>
-          </li>
-          <li class="flex items-start gap-2.5">
-            <span class="inline-flex items-center gap-1 bg-yellow-400 text-slate-900 font-bold px-2 py-0.5 rounded-full text-[10px] uppercase shadow-sm">
-              <i class="fa-solid fa-minus text-[9px]"></i> Média
-            </span>
-            <span class="text-slate-600 text-[11px] leading-tight pt-0.5">Prazo normal</span>
-          </li>
-          <li class="flex items-start gap-2.5">
-            <span class="inline-flex items-center gap-1 bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] uppercase shadow-sm">
-              <i class="fa-solid fa-angle-down text-[9px]"></i> Baixa
-            </span>
-            <span class="text-slate-600 text-[11px] leading-tight pt-0.5">Pode aguardar</span>
-          </li>
-        </ul>
-      </div>
-
-      <!-- Collaborators Box (Colaboradores) -->
-      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-        <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
-          <span>Colaboradores</span>
-          <i class="fa-solid fa-users text-slate-400 text-xs"></i>
-        </h3>
-        <ul class="space-y-2 text-xs">
-          <li class="flex items-center gap-2.5 font-medium text-slate-700">
-            <span class="w-3 h-3 rounded-full bg-blue-600 inline-block shadow-sm"></span>
-            <span>João <span class="text-slate-400 font-normal">(Montagem)</span></span>
-          </li>
-          <li class="flex items-center gap-2.5 font-medium text-slate-700">
-            <span class="w-3 h-3 rounded-full bg-pink-500 inline-block shadow-sm"></span>
-            <span>Maria <span class="text-slate-400 font-normal">(Qualidade)</span></span>
-          </li>
-          <li class="flex items-center gap-2.5 font-medium text-slate-700">
-            <span class="w-3 h-3 rounded-full bg-amber-500 inline-block shadow-sm"></span>
-            <span>Carlos <span class="text-slate-400 font-normal">(Logística)</span></span>
-          </li>
-          <li class="flex items-center gap-2.5 font-medium text-slate-700">
-            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block shadow-sm"></span>
-            <span>Fernanda <span class="text-slate-400 font-normal">(PCBs)</span></span>
-          </li>
-          <li class="flex items-center gap-2.5 font-medium text-slate-700">
-            <span class="w-3 h-3 rounded-full bg-cyan-500 inline-block shadow-sm"></span>
-            <span>Ricardo <span class="text-slate-400 font-normal">(Injeção)</span></span>
-          </li>
-          <li class="flex items-center gap-2.5 font-medium text-slate-700">
-            <span class="w-3 h-3 rounded-full bg-purple-500 inline-block shadow-sm"></span>
-            <span>Ana <span class="text-slate-400 font-normal">(Marketing)</span></span>
-          </li>
-          <li class="flex items-center gap-2.5 font-medium text-slate-700">
-            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-sm"></span>
-            <span>Letícia <span class="text-slate-400 font-normal">(Design)</span></span>
-          </li>
-        </ul>
-      </div>
-
-    </aside>
-
-    <!-- RIGHT AREA: 5 KANBAN COLUMNS -->
-    <section class="flex-1 overflow-x-auto pb-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 min-w-[1000px] h-full items-start">
-
-        <!-- Column 1: Solicitado -->
-        <div class="col-container bg-blue-50/40 rounded-xl border border-blue-200 flex flex-col max-h-[calc(100vh-140px)] min-h-[500px]" data-column="solicitado">
-          <div class="bg-blue-600 text-white px-4 py-3 rounded-t-xl flex items-center justify-between font-bold shadow-sm">
-            <span class="text-sm">1. Solicitado <span class="text-blue-100 font-normal text-xs">(Backlog)</span></span>
-            <span id="count-solicitado" class="w-6 h-6 rounded-full bg-white text-blue-700 text-xs flex items-center justify-center font-black">0</span>
-          </div>
-          <!-- Urgent Expedite Container (Shown if expedite active) -->
-          <div id="expedite-solicitado" class="expedite-zone hidden p-2 bg-red-50/80 border-b-2 border-red-200 border-dashed">
-            <div class="text-[10px] font-black uppercase tracking-wider text-red-600 mb-1 flex items-center gap-1">
-              <i class="fa-solid fa-triangle-exclamation"></i> Expedite (Prioridade Máxima)
-            </div>
-            <div class="urgent-card-slot space-y-2.5"></div>
-          </div>
-          <!-- Normal Card Slot -->
-          <div id="cards-solicitado" class="card-slot p-2.5 space-y-2.5 overflow-y-auto flex-1 min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'solicitado')">
-          </div>
-        </div>
-
-        <!-- Column 2: Em Cotação / Análise -->
-        <div class="col-container bg-purple-50/40 rounded-xl border border-purple-200 flex flex-col max-h-[calc(100vh-140px)] min-h-[500px]" data-column="cotacao">
-          <div class="bg-purple-700 text-white px-4 py-3 rounded-t-xl flex items-center justify-between font-bold shadow-sm">
-            <span class="text-sm">2. Em Cotação / Análise</span>
-            <span id="count-cotacao" class="w-6 h-6 rounded-full bg-white text-purple-800 text-xs flex items-center justify-center font-black">0</span>
-          </div>
-          <div id="expedite-cotacao" class="expedite-zone hidden p-2 bg-red-50/80 border-b-2 border-red-200 border-dashed">
-            <div class="text-[10px] font-black uppercase tracking-wider text-red-600 mb-1 flex items-center gap-1">
-              <i class="fa-solid fa-triangle-exclamation"></i> Expedite (Prioridade Máxima)
-            </div>
-            <div class="urgent-card-slot space-y-2.5"></div>
-          </div>
-          <div id="cards-cotacao" class="card-slot p-2.5 space-y-2.5 overflow-y-auto flex-1 min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'cotacao')">
-          </div>
-        </div>
-
-        <!-- Column 3: Emissão de Pedido (PO) -->
-        <div class="col-container bg-orange-50/40 rounded-xl border border-orange-200 flex flex-col max-h-[calc(100vh-140px)] min-h-[500px]" data-column="po">
-          <div class="bg-orange-600 text-white px-4 py-3 rounded-t-xl flex items-center justify-between font-bold shadow-sm">
-            <span class="text-sm">3. Emissão de Pedido <span class="text-orange-100 font-normal text-xs">(PO)</span></span>
-            <span id="count-po" class="w-6 h-6 rounded-full bg-white text-orange-800 text-xs flex items-center justify-center font-black">0</span>
-          </div>
-          <div id="expedite-po" class="expedite-zone hidden p-2 bg-red-50/80 border-b-2 border-red-200 border-dashed">
-            <div class="text-[10px] font-black uppercase tracking-wider text-red-600 mb-1 flex items-center gap-1">
-              <i class="fa-solid fa-triangle-exclamation"></i> Expedite (Prioridade Máxima)
-            </div>
-            <div class="urgent-card-slot space-y-2.5"></div>
-          </div>
-          <div id="cards-po" class="card-slot p-2.5 space-y-2.5 overflow-y-auto flex-1 min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'po')">
-          </div>
-        </div>
-
-        <!-- Column 4: Aguardando Entrega -->
-        <div class="col-container bg-teal-50/40 rounded-xl border border-teal-200 flex flex-col max-h-[calc(100vh-140px)] min-h-[500px]" data-column="entrega">
-          <div class="bg-teal-600 text-white px-4 py-3 rounded-t-xl flex items-center justify-between font-bold shadow-sm">
-            <span class="text-sm">4. Aguardando Entrega</span>
-            <span id="count-entrega" class="w-6 h-6 rounded-full bg-white text-teal-800 text-xs flex items-center justify-center font-black">0</span>
-          </div>
-          <div id="expedite-entrega" class="expedite-zone hidden p-2 bg-red-50/80 border-b-2 border-red-200 border-dashed">
-            <div class="text-[10px] font-black uppercase tracking-wider text-red-600 mb-1 flex items-center gap-1">
-              <i class="fa-solid fa-triangle-exclamation"></i> Expedite (Prioridade Máxima)
-            </div>
-            <div class="urgent-card-slot space-y-2.5"></div>
-          </div>
-          <div id="cards-entrega" class="card-slot p-2.5 space-y-2.5 overflow-y-auto flex-1 min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'entrega')">
-          </div>
-        </div>
-
-        <!-- Column 5: Concluído -->
-        <div class="col-container bg-red-50/40 rounded-xl border border-red-200 flex flex-col max-h-[calc(100vh-140px)] min-h-[500px]" data-column="concluido">
-          <div class="bg-red-600 text-white px-4 py-3 rounded-t-xl flex items-center justify-between font-bold shadow-sm">
-            <span class="text-sm">5. Concluído</span>
-            <span id="count-concluido" class="w-6 h-6 rounded-full bg-white text-red-800 text-xs flex items-center justify-center font-black">0</span>
-          </div>
-          <div id="expedite-concluido" class="expedite-zone hidden p-2 bg-red-50/80 border-b-2 border-red-200 border-dashed">
-            <div class="text-[10px] font-black uppercase tracking-wider text-red-600 mb-1 flex items-center gap-1">
-              <i class="fa-solid fa-triangle-exclamation"></i> Expedite (Prioridade Máxima)
-            </div>
-            <div class="urgent-card-slot space-y-2.5"></div>
-          </div>
-          <div id="cards-concluido" class="card-slot p-2.5 space-y-2.5 overflow-y-auto flex-1 min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'concluido')">
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-  </main>
-
-  <!-- ADD / EDIT CARD MODAL -->
-  <div id="cardModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden transform transition-all">
-      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
-        <h3 id="modalTitle" class="font-bold text-base flex items-center gap-2">
-          <i class="fa-solid fa-pen-to-square text-blue-400"></i> Novo Pedido de Compra
-        </h3>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg transition-colors">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <form id="cardForm" onsubmit="saveCard(event)" class="p-6 space-y-4">
-        <input type="hidden" id="cardId">
-
-        <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Título do Pedido *</label>
-          <input type="text" id="inputTitle" required placeholder="Ex: Compra de switches Omron" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Descrição / Especificação</label>
-          <textarea id="inputDesc" rows="2" placeholder="Ex: 1000 unidades - modelo D2FC-F-K" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Prioridade *</label>
-            <select id="inputPriority" required class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-              <option value="urgente">🚨 URGENTE</option>
-              <option value="alta">🟧 ALTA</option>
-              <option value="media" selected>🟨 MÉDIA</option>
-              <option value="baixa">🟩 BAIXA</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Coluna Inicial *</label>
-            <select id="inputColumn" required class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-              <option value="solicitado">1. Solicitado</option>
-              <option value="cotacao">2. Em Cotação</option>
-              <option value="po">3. Emissão PO</option>
-              <option value="entrega">4. Aguardando Entrega</option>
-              <option value="concluido">5. Concluído</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Responsável *</label>
-            <select id="inputCollaborator" required class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-              <option value="Carlos">Carlos (Logística)</option>
-              <option value="Fernanda">Fernanda (PCBs)</option>
-              <option value="João">João (Montagem)</option>
-              <option value="Maria">Maria (Qualidade)</option>
-              <option value="Ricardo">Ricardo (Injeção)</option>
-              <option value="Ana">Ana (Marketing)</option>
-              <option value="Letícia">Letícia (Design)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Data / Prazo *</label>
-            <input type="text" id="inputDate" required placeholder="DD/MM (ex: 15/09)" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          </div>
-        </div>
-
-        <div class="pt-4 flex items-center justify-between border-t border-slate-200">
-          <button type="button" id="deleteBtn" onclick="deleteCurrentCard()" class="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors hidden">
-            <i class="fa-solid fa-trash-can"></i> Excluir
-          </button>
-          <div class="flex items-center gap-2 ml-auto">
-            <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancelar</button>
-            <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow transition-all">Salvar Pedido</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- TOAST NOTIFICATION -->
-  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-xs font-medium flex items-center gap-2 transition-all transform translate-y-10 opacity-0 pointer-events-none z-50">
-    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
-    <span id="toastMsg">Ação realizada com sucesso!</span>
-  </div>
-
-  <script>
-    
-    // Default cards matching exact image + additional items to reach 28 demands
-    const INITIAL_CARDS = [
-      // Col 1: Solicitado (5 from image + 3 extra)
-      { id: '1', title: 'Compra de pilhas (baterias)', desc: 'Baterias de lítio 3.7V – 500 unidades', priority: 'urgente', column: 'solicitado', collaborator: 'Carlos', date: '12/09' },
-      { id: '2', title: 'Solicitar PAW3395 (sensor)', desc: 'Sensor óptico – 200 unidades', priority: 'alta', column: 'solicitado', collaborator: 'Fernanda', date: '13/09' },
-      { id: '3', title: 'Switches Omron', desc: '1000 unidades', priority: 'media', column: 'solicitado', collaborator: 'João', date: '16/09' },
-      { id: '4', title: 'Conectores USB-C', desc: '500 unidades', priority: 'baixa', column: 'solicitado', collaborator: 'Carlos', date: '18/09' },
-      { id: '5', title: 'Plástico ABS (carcaça)', desc: 'Material para injeção – 300kg', priority: 'media', column: 'solicitado', collaborator: 'Ricardo', date: '19/09' },
-      { id: '6', title: 'Encoders TTC Gold', desc: 'Encoders de rolagem 9mm - 400 un.', priority: 'alta', column: 'solicitado', collaborator: 'João', date: '21/09' },
-      { id: '7', title: 'Pés de Teflon (PTFE)', desc: 'Sapatas de deslize cortadas a laser', priority: 'media', column: 'solicitado', collaborator: 'Ricardo', date: '22/09' },
-      { id: '8', title: 'Moldes de redução de peso', desc: 'Estudo de cavidades alveolares', priority: 'baixa', column: 'solicitado', collaborator: 'Ricardo', date: '24/09' },
-
-      // Col 2: Em Cotação / Análise (4 from image + 2 extra)
-      { id: '9', title: 'Fornecedores de switches', desc: 'Comparar preços e prazos', priority: 'urgente', column: 'cotacao', collaborator: 'Maria', date: '11/09' },
-      { id: '10', title: 'Cabo Paracord USB-C', desc: 'Cotação com 3 fornecedores', priority: 'alta', column: 'cotacao', collaborator: 'Carlos', date: '14/09' },
-      { id: '11', title: 'Embalagens (caixas e manual)', desc: 'Solicitar amostras', priority: 'media', column: 'cotacao', collaborator: 'João', date: '17/09' },
-      { id: '12', title: 'Dongle 2.4 GHz', desc: 'Verificar disponibilidade', priority: 'baixa', column: 'cotacao', collaborator: 'Fernanda', date: '20/09' },
-      { id: '13', title: 'Micro-switches Kailh GM 8.0', desc: 'Lote de teste para cliques principais', priority: 'alta', column: 'cotacao', collaborator: 'Maria', date: '21/09' },
-      { id: '14', title: 'Placa de LED RGB', desc: 'Módulo de iluminação para scroll', priority: 'media', column: 'cotacao', collaborator: 'Fernanda', date: '23/09' },
-
-      // Col 3: Emissão de Pedido (PO) (3 from image + 2 extra)
-      { id: '15', title: 'PCBs (placas eletrônicas)', desc: 'Pedido para 1.000 unidades', priority: 'urgente', column: 'po', collaborator: 'Fernanda', date: '10/09' },
-      { id: '16', title: 'Baterias de lítio', desc: 'Pedido para 500 unidades', priority: 'alta', column: 'po', collaborator: 'Carlos', date: '12/09' },
-      { id: '17', title: 'Conectores USB-C', desc: 'Pedido para 500 unidades', priority: 'media', column: 'po', collaborator: 'Ricardo', date: '15/09' },
-      { id: '18', title: 'Sacos Antiestáticos ESD', desc: 'Embalagem de proteção - 2000 un.', priority: 'baixa', column: 'po', collaborator: 'Carlos', date: '18/09' },
-      { id: '19', title: 'Cabos trançados ultraflex', desc: 'Lote especial de 500 cabos rosa', priority: 'media', column: 'po', collaborator: 'Carlos', date: '19/09' },
-
-      // Col 4: Aguardando Entrega (2 from image + 2 extra)
-      { id: '20', title: 'Sensor PAW3395', desc: 'Entrega prevista: 11/09', priority: 'urgente', column: 'entrega', collaborator: 'Fernanda', date: '11/09' },
-      { id: '21', title: 'Plástico ABS', desc: 'Entrega prevista: 14/09', priority: 'media', column: 'entrega', collaborator: 'Ricardo', date: '14/09' },
-      { id: '22', title: 'Placas BMS de Proteção', desc: 'Circuito de carga para bateria', priority: 'alta', column: 'entrega', collaborator: 'Fernanda', date: '16/09' },
-      { id: '23', title: 'Espumas termoformatadas', desc: 'Berço de encaixe da caixa', priority: 'media', column: 'entrega', collaborator: 'João', date: '17/09' },
-
-      // Col 5: Concluído (3 from image + 2 extra)
-      { id: '24', title: 'Lançamento da campanha', desc: 'Marketing do novo produto', priority: 'baixa', column: 'concluido', collaborator: 'Ana', date: '09/09' },
-      { id: '25', title: 'Componentes da carcaça', desc: 'Recebimento e conferência', priority: 'alta', column: 'concluido', collaborator: 'João', date: '08/09' },
-      { id: '26', title: 'Manual do produto', desc: 'Revisão e diagramação', priority: 'media', column: 'concluido', collaborator: 'Letícia', date: '07/09' },
-      { id: '27', title: 'Ensaio de Homologação Anatel', desc: 'Certificação de radiofrequência 2.4GHz', priority: 'urgente', column: 'concluido', collaborator: 'Maria', date: '05/09' },
-      { id: '28', title: 'Gabarito de Teste de Qualidade', desc: 'Fixture de acionamento de botões', priority: 'alta', column: 'concluido', collaborator: 'Maria', date: '06/09' }
-    ];
-
-    let cardsData = [];
-    let draggedCardId = null;
-    let isExpediteActive = false;
-
-    // Collaborator Dot Colors Mapping
-    const COLLABORATOR_COLORS = {
-      'João': 'bg-blue-600',
-      'Maria': 'bg-pink-500',
-      'Carlos': 'bg-amber-500',
-      'Fernanda': 'bg-emerald-500',
-      'Ricardo': 'bg-cyan-500',
-      'Ana': 'bg-purple-500',
-      'Letícia': 'bg-indigo-500'
-    };
-
-
-    // Initialization
-    window.onload = function() {
-      loadState();
-      renderBoard();
-    };
-
-    function loadState() {
-      const saved = localStorage.getItem('kanban_senai_mouse_data');
-      if (saved) {
-        try {
-          cardsData = JSON.parse(saved);
-        } catch (e) {
-          cardsData = [...INITIAL_CARDS];
-        }
-      } else {
-        cardsData = [...INITIAL_CARDS];
-      }
-    }
-
-    function saveState() {
-      localStorage.setItem('kanban_senai_mouse_data', JSON.stringify(cardsData));
-      updateTotalDemandasCount();
-    }
-
-    function resetToDefaultData() {
-      cardsData = [...INITIAL_CARDS];
-      saveState();
-      renderBoard();
-      showToast('Quadro restaurado para as 28 demandas originais!', 'fa-rotate-left', 'text-blue-400');
-    }
-
-    function updateTotalDemandasCount() {
-      document.getElementById('totalDemandasCount').innerText = cardsData.length;
-    }
-
-    function toggleExpediteMode() {
-      isExpediteActive = document.getElementById('expediteToggle').checked;
-      renderBoard();
-      if (isExpediteActive) {
-        showToast('Raia Expedite ativada: Pedidos urgentes destacados!', 'fa-bolt', 'text-red-400');
-      }
-    }
-
-    function applyFilters() {
-      renderBoard();
-    }
-
-    function renderBoard() {
-      updateTotalDemandasCount();
-
-      const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
-      const priorityVal = document.getElementById('priorityFilter').value;
-      const collabVal = document.getElementById('collaboratorFilter').value;
-
-      // Filter cards
-      const filtered = cardsData.filter(card => {
-        const matchesSearch = card.title.toLowerCase().includes(searchVal) || 
-                              card.desc.toLowerCase().includes(searchVal) ||
-                              card.collaborator.toLowerCase().includes(searchVal);
-        const matchesPriority = priorityVal === 'todos' || card.priority === priorityVal;
-        const matchesCollab = collabVal === 'todos' || card.collaborator === collabVal;
-
-        return matchesSearch && matchesPriority && matchesCollab;
-      });
-
-      const columns = ['solicitado', 'cotacao', 'po', 'entrega', 'concluido'];
-
-      columns.forEach(col => {
-        const slotEl = document.getElementById(`cards-${col}`);
-        const expediteZone = document.getElementById(`expedite-${col}`);
-        const urgentSlot = expediteZone.querySelector('.urgent-card-slot');
-        const countEl = document.getElementById(`count-${col}`);
-
-        slotEl.innerHTML = '';
-        urgentSlot.innerHTML = '';
-
-        const colCards = filtered.filter(c => c.column === col);
-        countEl.innerText = colCards.length;
-
-        if (isExpediteActive) {
-          expediteZone.classList.remove('hidden');
-        } else {
-          expediteZone.classList.add('hidden');
-        }
-
-        colCards.forEach(card => {
-          const cardHtml = createCardElement(card);
-          
-          if (isExpediteActive && card.priority === 'urgente') {
-            urgentSlot.appendChild(cardHtml);
-          } else {
-            slotEl.appendChild(cardHtml);
-          }
-        });
-      });
-    }
-
-    function createCardElement(card) {
-      const div = document.createElement('div');
-      div.className = `kanban-card bg-white rounded-xl p-3 shadow-sm border border-slate-200 cursor-grab relative ${card.priority === 'urgente' ? 'urgent-highlight border-red-300' : ''}`;
-      div.setAttribute('draggable', 'true');
-      div.setAttribute('data-id', card.id);
-
-      // Drag event listeners
-      div.addEventListener('dragstart', (e) => handleDragStart(e, card.id));
-      div.addEventListener('dragend', handleDragEnd);
-      div.addEventListener('click', () => editCard(card.id));
-
-      // Badge config
-      let badgeHtml = '';
-      if (card.priority === 'urgente') {
-        badgeHtml = `<span class="inline-flex items-center gap-1 bg-red-600 text-white font-bold px-2 py-0.5 rounded-full text-[10px] uppercase shadow-sm">
-                       <i class="fa-solid fa-circle-exclamation text-[9px]"></i> URGENTE
-                     </span>`;
-      } else if (card.priority === 'alta') {
-        badgeHtml = `<span class="inline-flex items-center gap-1 bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] uppercase shadow-sm">
-                       <i class="fa-solid fa-angles-up text-[9px]"></i> ALTA
-                     </span>`;
-      } else if (card.priority === 'media') {
-        badgeHtml = `<span class="inline-flex items-center gap-1 bg-yellow-400 text-slate-900 font-bold px-2 py-0.5 rounded-full text-[10px] uppercase shadow-sm">
-                       <i class="fa-solid fa-bullhorn text-[9px]"></i> MÉDIA
-                     </span>`;
-      } else {
-        badgeHtml = `<span class="inline-flex items-center gap-1 bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] uppercase shadow-sm">
-                       <i class="fa-solid fa-check text-[9px]"></i> BAIXA
-                     </span>`;
-      }
-
-      const dotColor = COLLABORATOR_COLORS[card.collaborator] || 'bg-slate-400';
-
-      div.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-          ${badgeHtml}
-          <i class="fa-solid fa-grip-vertical text-slate-300 text-xs hover:text-slate-500 transition-colors"></i>
-        </div>
-        <h4 class="font-bold text-slate-900 text-xs leading-snug mb-1">${escapeHtml(card.title)}</h4>
-        <p class="text-[11px] text-slate-500 leading-tight mb-3 line-clamp-2">${escapeHtml(card.desc)}</p>
-        <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-600">
-          <div class="flex items-center gap-1.5 font-medium">
-            <i class="fa-solid fa-user text-[10px] text-slate-400"></i>
-            <span class="w-2 h-2 rounded-full ${dotColor}"></span>
-            <span>${escapeHtml(card.collaborator)}</span>
-          </div>
-          <div class="flex items-center gap-1 text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.5 rounded">
-            <i class="fa-regular fa-calendar text-[10px]"></i>
-            <span>${escapeHtml(card.date)}</span>
-          </div>
-        </div>
-      `;
-
-      return div;
-    }
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
-
-
-    function handleDragStart(e, id) {
-      draggedCardId = id;
-      e.target.classList.add('dragging');
-      e.dataTransfer.setData('text/plain', id);
-      e.dataTransfer.effectAllowed = 'move';
-    }
-
-    function handleDragEnd(e) {
-      e.target.classList.remove('dragging');
-      document.querySelectorAll('.card-slot').forEach(slot => slot.classList.remove('drag-over'));
-    }
-
-    function handleDragOver(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      const slot = e.currentTarget;
-      slot.classList.add('drag-over');
-    }
-
-    function handleDragLeave(e) {
-      const slot = e.currentTarget;
-      slot.classList.remove('drag-over');
-    }
-
-    function handleDrop(e, targetColumn) {
-      e.preventDefault();
-      const slot = e.currentTarget;
-      slot.classList.remove('drag-over');
-
-      if (!draggedCardId) return;
-
-      const card = cardsData.find(c => c.id === draggedCardId);
-      if (card && card.column !== targetColumn) {
-        const oldCol = card.column;
-        card.column = targetColumn;
-        saveState();
-        renderBoard();
-
-        const colNames = {
-          solicitado: 'Solicitado',
-          cotacao: 'Em Cotação',
-          po: 'Emissão PO',
-          entrega: 'Aguardando Entrega',
-          concluido: 'Concluído'
-        };
-
-        showToast(`Pedido movido para "${colNames[targetColumn]}"`, 'fa-arrow-right-long', 'text-blue-400');
-      }
-      draggedCardId = null;
-    }
-
-
-    function openModal() {
-      document.getElementById('cardForm').reset();
-      document.getElementById('cardId').value = '';
-      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-plus text-blue-400"></i> Novo Pedido de Compra';
-      document.getElementById('deleteBtn').classList.add('hidden');
-      document.getElementById('cardModal').classList.remove('hidden');
-    }
-
-    function closeModal() {
-      document.getElementById('cardModal').classList.add('hidden');
-    }
-
-    function editCard(id) {
-      const card = cardsData.find(c => c.id === id);
-      if (!card) return;
-
-      document.getElementById('cardId').value = card.id;
-      document.getElementById('inputTitle').value = card.title;
-      document.getElementById('inputDesc').value = card.desc;
-      document.getElementById('inputPriority').value = card.priority;
-      document.getElementById('inputColumn').value = card.column;
-      document.getElementById('inputCollaborator').value = card.collaborator;
-      document.getElementById('inputDate').value = card.date;
-
-      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-amber-400"></i> Editar Pedido';
-      document.getElementById('deleteBtn').classList.remove('hidden');
-      document.getElementById('cardModal').classList.remove('hidden');
-    }
-
-    function saveCard(e) {
-      e.preventDefault();
-      const id = document.getElementById('cardId').value;
-      const title = document.getElementById('inputTitle').value.trim();
-      const desc = document.getElementById('inputDesc').value.trim();
-      const priority = document.getElementById('inputPriority').value;
-      const column = document.getElementById('inputColumn').value;
-      const collaborator = document.getElementById('inputCollaborator').value;
-      const date = document.getElementById('inputDate').value.trim();
-
-      if (id) {
-        // Edit existing card
-        const card = cardsData.find(c => c.id === id);
-        if (card) {
-          card.title = title;
-          card.desc = desc;
-          card.priority = priority;
-          card.column = column;
-          card.collaborator = collaborator;
-          card.date = date;
-          showToast('Pedido atualizado com sucesso!', 'fa-circle-check', 'text-emerald-400');
-        }
-      } else {
-        // Create new card
-        const newCard = {
-          id: Date.now().toString(),
-          title,
-          desc,
-          priority,
-          column,
-          collaborator,
-          date
-        };
-        cardsData.push(newCard);
-        showToast('Novo pedido cadastrado no Kanban!', 'fa-square-plus', 'text-emerald-400');
-      }
-
-      saveState();
-      renderBoard();
-      closeModal();
-    }
-
-    function deleteCurrentCard() {
-      const id = document.getElementById('cardId').value;
-      if (!id) return;
-
-      cardsData = cardsData.filter(c => c.id !== id);
-      saveState();
-      renderBoard();
-      closeModal();
-      showToast('Pedido removido do quadro.', 'fa-trash-can', 'text-red-400');
-    }
-
-    function showToast(msg, iconClass = 'fa-circle-check', iconColor = 'text-emerald-400') {
-      const toast = document.getElementById('toast');
-      const toastMsg = document.getElementById('toastMsg');
-      const toastIcon = document.getElementById('toastIcon');
-
-      toastMsg.innerText = msg;
-      toastIcon.className = `fa-solid ${iconClass} ${iconColor} text-base`;
-
-      toast.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
-      
-      setTimeout(() => {
-        toast.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
-      }, 3000);
-    }
-  </script>
-</body>
-</html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulação Kanban – Pedidos Urgentes</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{font-family:Inter,sans-serif}
+.card{border-left-width:5px}
+.p-urgente{border-color:#dc2626;background:#fef2f2}.p-alta{border-color:#f97316;background:#fff7ed}
+.p-media{border-color:#eab308;background:#fefce8}.p-baixa{border-color:#10b981;background:#ecfdf5}
+.tag{font-size:9px;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;color:#fff}
+.t-urgente{background:#dc2626}.t-alta{background:#f97316}.t-media{background:#ca8a04}.t-baixa{background:#059669}
+.late{box-shadow:0 0 0 2px #dc2626;animation:pl 1.6s infinite}
+@keyframes pl{50%{box-shadow:0 0 0 2px rgba(220,38,38,.25)}}
+.col{max-height:430px;overflow-y:auto}
+</style></head>
+<body class="bg-slate-100 text-slate-800">
+<header class="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+ <div><h1 class="text-lg font-extrabold"><i class="fa-solid fa-bolt text-red-400"></i> Kanban de Compras – Simulação de Pedidos Urgentes</h1>
+ <p class="text-xs text-slate-300">20 solicitações/dia · 10 dias úteis · mesmos pedidos nas duas filas · SENAI</p></div>
+ <div class="flex items-center gap-3 text-xs">
+  <label>Capacidade de Compras:
+   <select id="cap" class="text-slate-900 rounded px-2 py-1"><option value="16" selected>16 pedidos/dia (80% da demanda)</option><option value="18">18 pedidos/dia (90%)</option><option value="20">20 pedidos/dia (100%)</option></select></label>
+  <label>Semente: <input id="seed" type="number" value="2026" class="text-slate-900 rounded px-2 py-1 w-20"></label>
+ </div>
+</header>
+
+<section class="px-6 pt-4 flex flex-wrap items-center gap-4">
+ <button id="play" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg"><i class="fa-solid fa-play"></i> Reproduzir</button>
+ <input id="day" type="range" min="0" max="9" value="0" class="w-64">
+ <span class="text-sm font-bold">Dia <span id="dayLbl">1</span> de 10</span>
+ <div class="flex gap-2 text-[11px] font-semibold ml-auto">
+  <span class="tag t-urgente">Urgente · 1 dia</span><span class="tag t-alta">Alta · 2 dias</span><span class="tag t-media">Média · 4 dias</span><span class="tag t-baixa">Baixa · 7 dias</span>
+  <span class="text-slate-500">(prazo máximo / SLA) · contorno vermelho pulsante = prazo estourado</span></div>
+</section>
+
+<main class="p-6 grid lg:grid-cols-2 gap-6" id="boards"></main>
+
+<section class="px-6 pb-8">
+ <div class="bg-white rounded-xl shadow border border-slate-200 p-5">
+  <h2 class="font-extrabold text-slate-900 mb-1">Resultado final da simulação (10 dias · <span id="totReq"></span> pedidos · <span id="totUrg"></span> urgentes)</h2>
+  <p class="text-xs text-slate-500 mb-3">Lead time = dias entre a solicitação e o atendimento (mínimo 1). SLA cumprido = atendido dentro do prazo da prioridade.</p>
+  <div class="overflow-x-auto"><table class="w-full text-xs text-center" id="tbl"></table></div>
+  <p class="text-xs text-slate-600 mt-4" id="robust"></p>
+ </div>
+</section>
+
+<script>
+// Simulação compartilhada: usada no HTML e para gerar os números da apresentação
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const SLA={urgente:1,alta:2,media:4,baixa:7}; // prazo em dias úteis
+const MIX=[['urgente',.15],['alta',.25],['media',.35],['baixa',.25]];
+function gen(seed,days=10,perDay=20){const r=mulberry32(seed);const out=[];let id=1;
+ for(let d=0;d<days;d++)for(let i=0;i<perDay;i++){let x=r(),p='baixa',c=0;for(const [k,w] of MIX){c+=w;if(x<c){p=k;break}}
+  out.push({id:id++,day:d,pri:p,due:d+SLA[p]})}return out}
+function run(reqs,policy,cap=16,days=10,snaps){ // cap = pedidos que Compras consegue tratar por dia
+ const done=[];let pool=[];const rank={urgente:0,alta:1,media:2,baixa:3};
+ for(let d=0;d<days+15;d++){pool.push(...reqs.filter(r=>r.day===d));
+  if(policy==='fifo')pool.sort((a,b)=>a.day-b.day||a.id-b.id);
+  else pool.sort((a,b)=>(rank[a.pri]===0)!==(rank[b.pri]===0)?(rank[a.pri]===0?-1:1):a.due-b.due||a.id-b.id);
+  const n=Math.min(cap,pool.length);const served=pool.splice(0,n).map(r=>{const x={...r,end:d,lead:d-r.day+1};done.push(x);return x});
+  if(snaps)snaps.push({d,pool:pool.slice(),served});
+  if(!pool.length&&d>=days)break}
+ return done}
+function stats(done){const o={};for(const k of ['urgente','alta','media','baixa','todos']){
+  const s=done.filter(r=>k==='todos'||r.pri===k);const lead=s.reduce((a,r)=>a+r.lead,0)/s.length;
+  const ok=s.filter(r=>r.end<=r.due).length/s.length;const max=Math.max(...s.map(r=>r.lead));
+  o[k]={n:s.length,lead,ok,max}}return o}
+
+const $=id=>document.getElementById(id);
+const NOMES={urgente:'Urgente',alta:'Alta',media:'Média',baixa:'Baixa'};
+let reqs,snA,snB,doneA,doneB,timer=null;
+function setup(){const cap=+$('cap').value,seed=+$('seed').value||2026;reqs=gen(seed);
+ snA=[];snB=[];doneA=run(reqs,'fifo',cap,10,snA);doneB=run(reqs,'kanban',cap,10,snB);
+ $('totReq').textContent=reqs.length;$('totUrg').textContent=reqs.filter(r=>r.pri==='urgente').length;
+ renderTable();render();robust(cap)}
+function card(r,d){const late=r.due<=d&&!r.served;const w=d-r.day+1;
+ return `<div class="card p-${r.pri} bg-white rounded-lg p-2 mb-1.5 text-[11px] ${late?'late':''}"><div class="flex justify-between items-center"><span class="tag t-${r.pri}">${NOMES[r.pri]}</span><span class="text-slate-500">Pedido #${r.id}</span></div>
+ <div class="flex justify-between mt-1 text-slate-600"><span>Chegou no dia ${r.day+1}</span><b class="${late?'text-red-600':''}">${r.served?'atendido':'espera '+w+'d'}${late?' · ATRASADO':''}</b></div></div>`}
+function board(title,sub,snap,d,kan){const pool=snap.pool,served=snap.served.map(r=>({...r,served:1}));
+ const urg=pool.filter(r=>r.pri==='urgente'),rest=kan?pool.filter(r=>r.pri!=='urgente'):pool;
+ const lateU=urg.filter(r=>r.due<=d).length,lateAll=pool.filter(r=>r.due<=d).length;
+ const lim=14,shown=rest.slice(0,lim);
+ return `<div class="bg-white rounded-xl shadow border ${kan?'border-emerald-400':'border-slate-300'}">
+ <div class="px-4 py-3 rounded-t-xl text-white ${kan?'bg-emerald-700':'bg-slate-600'}"><b>${title}</b><div class="text-[11px] opacity-90">${sub}</div></div>
+ <div class="grid grid-cols-3 text-center text-[11px] border-b"><div class="p-2"><b class="text-base">${pool.length}</b><br>na fila</div><div class="p-2"><b class="text-base ${lateU?'text-red-600':''}">${lateU}</b><br>urgentes atrasados</div><div class="p-2"><b class="text-base ${lateAll?'text-red-600':''}">${lateAll}</b><br>pedidos atrasados</div></div>
+ <div class="grid grid-cols-2 gap-3 p-3">
+  <div><div class="text-[11px] font-extrabold uppercase text-slate-500 mb-1">1. Solicitado (fila)</div>
+   ${kan?`<div class="bg-red-50 border-2 border-dashed border-red-300 rounded-lg p-1.5 mb-2"><div class="text-[10px] font-black uppercase text-red-600 mb-1"><i class="fa-solid fa-bolt"></i> Raia Expedite (${urg.length}) – sempre no topo</div><div class="col" style="max-height:170px">${urg.map(r=>card(r,d)).join('')||'<div class="text-[11px] text-slate-400 p-1">Nenhum urgente aguardando ✔</div>'}</div></div>`:''}
+   <div class="col">${shown.map(r=>card(r,d)).join('')}${rest.length>lim?`<div class="text-center text-[11px] text-slate-500 py-1">+ ${rest.length-lim} pedidos na fila…</div>`:''}</div></div>
+  <div><div class="text-[11px] font-extrabold uppercase text-slate-500 mb-1">2. Atendidos no dia (${served.length})</div><div class="col">${served.slice(0,16).map(r=>card(r,d)).join('')}${served.length>16?`<div class="text-center text-[11px] text-slate-500 py-1">+ ${served.length-16}…</div>`:''}</div></div>
+ </div></div>`}
+function render(){const d=+$('day').value;$('dayLbl').textContent=d+1;
+ $('boards').innerHTML=board('SEM Kanban – Fila por ordem de chegada (FIFO)','Urgentes misturados com os demais',snA[d],d,false)+board('COM Kanban – Prioridade + Raia Expedite','Urgentes no topo · demais ordenados por prazo',snB[d],d,true)}
+function renderTable(){const a=stats(doneA),b=stats(doneB);const f=(x,n=1)=>x.toFixed(n).replace('.',',');
+ let h='<tr class="bg-slate-100 font-bold"><td class="p-2 text-left" rowspan=2>Prioridade</td><td colspan=3 class="p-1">Lead time médio (dias)</td><td colspan=2 class="p-1">SLA cumprido</td><td colspan=2 class="p-1">Pior espera (dias)</td></tr><tr class="bg-slate-50 font-semibold"><td>FIFO</td><td>Kanban</td><td>Variação</td><td>FIFO</td><td>Kanban</td><td>FIFO</td><td>Kanban</td></tr>';
+ for(const k of ['urgente','alta','media','baixa','todos']){const v=(b[k].lead-a[k].lead)/a[k].lead*100;
+  h+=`<tr class="border-t ${k==='urgente'?'bg-red-50 font-bold':''}"><td class="p-2 text-left">${k==='todos'?'Todos':NOMES[k]}</td><td>${f(a[k].lead)}</td><td>${f(b[k].lead)}</td><td class="${v<0?'text-emerald-700':v>0?'text-amber-700':''} font-bold">${v>0?'+':''}${f(v,0)}%</td><td>${f(a[k].ok*100,0)}%</td><td>${f(b[k].ok*100,0)}%</td><td>${a[k].max}</td><td>${b[k].max}</td></tr>`}
+ $('tbl').innerHTML=h}
+function robust(cap){const N=500;let m={fl:0,kl:0,fo:0,ko:0,bf:0,bk:0};
+ for(let s=1;s<=N;s++){const g=gen(s),a=stats(run(g,'fifo',cap)),b=stats(run(g,'kanban',cap));m.fl+=a.urgente.lead;m.kl+=b.urgente.lead;m.fo+=a.urgente.ok;m.ko+=b.urgente.ok;m.bf+=a.baixa.lead;m.bk+=b.baixa.lead}
+ const f=x=>(x/N).toFixed(1).replace('.',','),p=x=>Math.round(x/N*100);
+ $('robust').innerHTML=`<b>Teste de robustez (${N} cenários aleatórios, mesma capacidade):</b> urgentes esperam em média ${f(m.fl)} → ${f(m.kl)} dia(s); SLA dos urgentes ${p(m.fo)}% → ${p(m.ko)}%; em contrapartida, pedidos de prioridade baixa passam de ${f(m.bf)} → ${f(m.bk)} dias (ainda dentro dos 7 dias). <i>Com capacidade igual à demanda (20/dia) não há fila e a diferença desaparece: o Kanban resolve o problema quando há sobrecarga.</i>`}
+$('day').oninput=render;$('cap').onchange=setup;$('seed').onchange=setup;
+$('play').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('play').innerHTML='<i class="fa-solid fa-play"></i> Reproduzir';return}
+ $('play').innerHTML='<i class="fa-solid fa-pause"></i> Pausar';if(+$('day').value>=9)$('day').value=0;render();
+ timer=setInterval(()=>{const v=+$('day').value;if(v>=9){$('play').click();return}$('day').value=v+1;render()},1400)};
+setup();
+</script></body></html>
