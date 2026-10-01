@@ -1,46 +1,54 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Simulação Kanban – Pedidos Urgentes</title>
+<title>Kanban de Compras – Simulação de Pedidos Urgentes</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 body{font-family:Inter,sans-serif}
-.card{border-left-width:5px}
+.card{border-left-width:5px;background:#fff}
 .p-urgente{border-color:#dc2626;background:#fef2f2}.p-alta{border-color:#f97316;background:#fff7ed}
 .p-media{border-color:#eab308;background:#fefce8}.p-baixa{border-color:#10b981;background:#ecfdf5}
-.tag{font-size:9px;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;color:#fff}
+.tag{font-size:9px;font-weight:800;text-transform:uppercase;padding:1px 6px;border-radius:99px;color:#fff;white-space:nowrap}
 .t-urgente{background:#dc2626}.t-alta{background:#f97316}.t-media{background:#ca8a04}.t-baixa{background:#059669}
-.late{box-shadow:0 0 0 2px #dc2626;animation:pl 1.6s infinite}
-@keyframes pl{50%{box-shadow:0 0 0 2px rgba(220,38,38,.25)}}
-.col{max-height:430px;overflow-y:auto}
+.late{box-shadow:0 0 0 2px #dc2626;animation:pl 1.4s infinite}
+@keyframes pl{50%{box-shadow:0 0 0 2px rgba(220,38,38,.2)}}
+.zone{max-height:300px;overflow-y:auto}
 </style></head>
 <body class="bg-slate-100 text-slate-800">
 <header class="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3">
  <div><h1 class="text-lg font-extrabold"><i class="fa-solid fa-bolt text-red-400"></i> Kanban de Compras – Simulação de Pedidos Urgentes</h1>
- <p class="text-xs text-slate-300">20 solicitações/dia · 10 dias úteis · mesmos pedidos nas duas filas · SENAI</p></div>
- <div class="flex items-center gap-3 text-xs">
+ <p class="text-xs text-slate-300">200 pedidos em 10 dias (20/dia) · mesmos pedidos nos dois modos · SENAI</p></div>
+ <div class="flex flex-wrap items-center gap-3 text-xs">
+  <div class="flex rounded-lg overflow-hidden border border-slate-500" id="mode">
+   <button data-m="fifo" class="px-3 py-2 font-bold">Sem Kanban (ordem de chegada)</button>
+   <button data-m="kanban" class="px-3 py-2 font-bold">Com Kanban (prioridade + Expedite)</button></div>
   <label>Capacidade de Compras:
-   <select id="cap" class="text-slate-900 rounded px-2 py-1"><option value="16" selected>16 pedidos/dia (80% da demanda)</option><option value="18">18 pedidos/dia (90%)</option><option value="20">20 pedidos/dia (100%)</option></select></label>
+   <select id="cap" class="text-slate-900 rounded px-2 py-1"><option value="16" selected>16 pedidos/dia</option><option value="18">18 pedidos/dia</option><option value="20">20 pedidos/dia</option></select></label>
   <label>Semente: <input id="seed" type="number" value="2026" class="text-slate-900 rounded px-2 py-1 w-20"></label>
  </div>
 </header>
 
 <section class="px-6 pt-4 flex flex-wrap items-center gap-4">
  <button id="play" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg"><i class="fa-solid fa-play"></i> Reproduzir</button>
- <input id="day" type="range" min="0" max="9" value="0" class="w-64">
+ <input id="day" type="range" min="0" max="9" value="0" class="w-56">
  <span class="text-sm font-bold">Dia <span id="dayLbl">1</span> de 10</span>
- <div class="flex gap-2 text-[11px] font-semibold ml-auto">
+ <div class="flex gap-4 text-center text-[11px] ml-4">
+  <div><b id="kQ" class="text-lg block"></b>na fila (Solicitado)</div>
+  <div><b id="kU" class="text-lg block"></b>urgentes atrasados</div>
+  <div><b id="kA" class="text-lg block"></b>pedidos atrasados</div>
+  <div><b id="kC" class="text-lg block"></b>concluídos</div></div>
+ <div class="flex flex-wrap gap-2 text-[11px] font-semibold ml-auto items-center">
   <span class="tag t-urgente">Urgente · 1 dia</span><span class="tag t-alta">Alta · 2 dias</span><span class="tag t-media">Média · 4 dias</span><span class="tag t-baixa">Baixa · 7 dias</span>
-  <span class="text-slate-500">(prazo máximo / SLA) · contorno vermelho pulsante = prazo estourado</span></div>
+  <span class="text-slate-500">Contorno vermelho pulsante = prazo estourado</span></div>
 </section>
 
-<main class="p-6 grid lg:grid-cols-2 gap-6" id="boards"></main>
+<main class="p-6"><div class="grid grid-cols-5 gap-3 min-w-[1000px] overflow-x-auto" id="board"></div></main>
 
 <section class="px-6 pb-8">
  <div class="bg-white rounded-xl shadow border border-slate-200 p-5">
-  <h2 class="font-extrabold text-slate-900 mb-1">Resultado final da simulação (10 dias · <span id="totReq"></span> pedidos · <span id="totUrg"></span> urgentes)</h2>
-  <p class="text-xs text-slate-500 mb-3">Lead time = dias entre a solicitação e o atendimento (mínimo 1). SLA cumprido = atendido dentro do prazo da prioridade.</p>
+  <h2 class="font-extrabold text-slate-900 mb-1">Resultado da simulação (10 dias · <span id="totReq"></span> pedidos · <span id="totUrg"></span> urgentes)</h2>
+  <p class="text-xs text-slate-500 mb-3">Atendimento = pedido sai de “Solicitado” e entra em “Em Cotação”. Lead time = dias entre solicitação e atendimento (mínimo 1). SLA = atendido dentro do prazo da prioridade. Depois do atendimento, o cartão avança: Cotação (dia 0) → Pedido (+1) → Entrega (+2 e +3) → Concluído (+4).</p>
   <div class="overflow-x-auto"><table class="w-full text-xs text-center" id="tbl"></table></div>
   <p class="text-xs text-slate-600 mt-4" id="robust"></p>
  </div>
@@ -70,38 +78,39 @@ function stats(done){const o={};for(const k of ['urgente','alta','media','baixa'
 
 const $=id=>document.getElementById(id);
 const NOMES={urgente:'Urgente',alta:'Alta',media:'Média',baixa:'Baixa'};
-let reqs,snA,snB,doneA,doneB,timer=null;
+const COLS=[['solicitado','1. Solicitado','bg-blue-600','border-blue-200'],['cotacao','2. Em Cotação','bg-purple-700','border-purple-200'],['po','3. Emissão de Pedido','bg-orange-600','border-orange-200'],['entrega','4. Aguardando Entrega','bg-teal-600','border-teal-200'],['concluido','5. Concluído','bg-red-600','border-red-200']];
+let reqs,snA,snB,doneA,doneB,mode='kanban',timer=null;
 function setup(){const cap=+$('cap').value,seed=+$('seed').value||2026;reqs=gen(seed);
  snA=[];snB=[];doneA=run(reqs,'fifo',cap,10,snA);doneB=run(reqs,'kanban',cap,10,snB);
  $('totReq').textContent=reqs.length;$('totUrg').textContent=reqs.filter(r=>r.pri==='urgente').length;
  renderTable();render();robust(cap)}
-function card(r,d){const late=r.due<=d&&!r.served;const w=d-r.day+1;
- return `<div class="card p-${r.pri} bg-white rounded-lg p-2 mb-1.5 text-[11px] ${late?'late':''}"><div class="flex justify-between items-center"><span class="tag t-${r.pri}">${NOMES[r.pri]}</span><span class="text-slate-500">Pedido #${r.id}</span></div>
- <div class="flex justify-between mt-1 text-slate-600"><span>Chegou no dia ${r.day+1}</span><b class="${late?'text-red-600':''}">${r.served?'atendido':'espera '+w+'d'}${late?' · ATRASADO':''}</b></div></div>`}
-function board(title,sub,snap,d,kan){const pool=snap.pool,served=snap.served.map(r=>({...r,served:1}));
- const urg=pool.filter(r=>r.pri==='urgente'),rest=kan?pool.filter(r=>r.pri!=='urgente'):pool;
- const lateU=urg.filter(r=>r.due<=d).length,lateAll=pool.filter(r=>r.due<=d).length;
- const lim=14,shown=rest.slice(0,lim);
- return `<div class="bg-white rounded-xl shadow border ${kan?'border-emerald-400':'border-slate-300'}">
- <div class="px-4 py-3 rounded-t-xl text-white ${kan?'bg-emerald-700':'bg-slate-600'}"><b>${title}</b><div class="text-[11px] opacity-90">${sub}</div></div>
- <div class="grid grid-cols-3 text-center text-[11px] border-b"><div class="p-2"><b class="text-base">${pool.length}</b><br>na fila</div><div class="p-2"><b class="text-base ${lateU?'text-red-600':''}">${lateU}</b><br>urgentes atrasados</div><div class="p-2"><b class="text-base ${lateAll?'text-red-600':''}">${lateAll}</b><br>pedidos atrasados</div></div>
- <div class="grid grid-cols-2 gap-3 p-3">
-  <div><div class="text-[11px] font-extrabold uppercase text-slate-500 mb-1">1. Solicitado (fila)</div>
-   ${kan?`<div class="bg-red-50 border-2 border-dashed border-red-300 rounded-lg p-1.5 mb-2"><div class="text-[10px] font-black uppercase text-red-600 mb-1"><i class="fa-solid fa-bolt"></i> Raia Expedite (${urg.length}) – sempre no topo</div><div class="col" style="max-height:170px">${urg.map(r=>card(r,d)).join('')||'<div class="text-[11px] text-slate-400 p-1">Nenhum urgente aguardando ✔</div>'}</div></div>`:''}
-   <div class="col">${shown.map(r=>card(r,d)).join('')}${rest.length>lim?`<div class="text-center text-[11px] text-slate-500 py-1">+ ${rest.length-lim} pedidos na fila…</div>`:''}</div></div>
-  <div><div class="text-[11px] font-extrabold uppercase text-slate-500 mb-1">2. Atendidos no dia (${served.length})</div><div class="col">${served.slice(0,16).map(r=>card(r,d)).join('')}${served.length>16?`<div class="text-center text-[11px] text-slate-500 py-1">+ ${served.length-16}…</div>`:''}</div></div>
- </div></div>`}
-function render(){const d=+$('day').value;$('dayLbl').textContent=d+1;
- $('boards').innerHTML=board('SEM Kanban – Fila por ordem de chegada (FIFO)','Urgentes misturados com os demais',snA[d],d,false)+board('COM Kanban – Prioridade + Raia Expedite','Urgentes no topo · demais ordenados por prazo',snB[d],d,true)}
-function renderTable(){const a=stats(doneA),b=stats(doneB);const f=(x,n=1)=>x.toFixed(n).replace('.',',');
- let h='<tr class="bg-slate-100 font-bold"><td class="p-2 text-left" rowspan=2>Prioridade</td><td colspan=3 class="p-1">Lead time médio (dias)</td><td colspan=2 class="p-1">SLA cumprido</td><td colspan=2 class="p-1">Pior espera (dias)</td></tr><tr class="bg-slate-50 font-semibold"><td>FIFO</td><td>Kanban</td><td>Variação</td><td>FIFO</td><td>Kanban</td><td>FIFO</td><td>Kanban</td></tr>';
+function card(r,d,col){const late=col==='solicitado'&&r.due<=d;const w=d-r.day+1;
+ const info=col==='solicitado'?`espera ${w}d · prazo dia ${r.due+1}`:col==='concluido'?`lead ${r.lead}d`:`atendido dia ${r.end+1}`;
+ return `<div class="card p-${r.pri} rounded-lg p-2 mb-1.5 text-[11px] ${late?'late':''}"><div class="flex justify-between items-center"><span class="tag t-${r.pri}">${NOMES[r.pri]}</span><span class="text-slate-500">#${r.id}</span></div>
+ <div class="mt-1 text-slate-600">Chegou dia ${r.day+1}</div><b class="${late?'text-red-600':'text-slate-700'}">${info}${late?' · ATRASADO':''}</b></div>`}
+function zone(list,d,col,max){return list.slice(0,max).map(r=>card(r,d,col)).join('')+(list.length>max?`<div class="text-center text-[10px] text-slate-500">+ ${list.length-max} pedidos…</div>`:'')}
+function render(){const d=+$('day').value,kan=mode==='kanban',snap=(kan?snB:snA)[d],done=(kan?doneB:doneA).filter(r=>r.end<=d);
+ $('dayLbl').textContent=d+1;
+ document.querySelectorAll('#mode button').forEach(b=>b.className='px-3 py-2 font-bold '+(b.dataset.m===mode?'bg-white text-slate-900':'bg-slate-700 text-white'));
+ const by={solicitado:snap.pool,cotacao:[],po:[],entrega:[],concluido:[]};
+ done.sort((a,b)=>b.end-a.end||a.id-b.id).forEach(r=>{const a=d-r.end;by[a===0?'cotacao':a===1?'po':a<=3?'entrega':'concluido'].push(r)});
+ const late=snap.pool.filter(r=>r.due<=d);
+ $('kQ').textContent=snap.pool.length;$('kU').textContent=late.filter(r=>r.pri==='urgente').length;$('kA').textContent=late.length;$('kC').textContent=by.concluido.length;
+ $('kU').className='text-lg block '+(+$('kU').textContent?'text-red-600':'');$('kA').className='text-lg block '+(late.length?'text-red-600':'');
+ $('board').innerHTML=COLS.map(([k,t,bg,bd])=>{const l=by[k],urg=kan?l.filter(r=>r.pri==='urgente'):[],rest=kan?l.filter(r=>r.pri!=='urgente'):l;
+  return `<div class="bg-white rounded-xl border ${bd} shadow-sm"><div class="${bg} text-white px-3 py-2 rounded-t-xl flex justify-between items-center text-xs font-bold"><span>${t}</span><span class="bg-white text-slate-800 rounded-full w-6 h-6 flex items-center justify-center">${l.length}</span></div>
+  ${kan?`<div class="m-2 p-1.5 bg-red-50 border-2 border-dashed border-red-300 rounded-lg"><div class="text-[10px] font-black uppercase text-red-600 mb-1"><i class="fa-solid fa-bolt"></i> Raia Expedite (${urg.length})</div><div class="zone" style="max-height:150px">${zone(urg,d,k,8)||'<div class="text-[10px] text-slate-400">vazio ✔</div>'}</div></div>`:''}
+  <div class="p-2 zone">${zone(rest,d,k,kan?12:20)}</div></div>`}).join('')}
+function renderTable(){const a=stats(doneA),b=stats(doneB),f=(x,n=1)=>x.toFixed(n).replace('.',',');
+ let h='<tr class="bg-slate-100 font-bold"><td class="p-2 text-left" rowspan=2>Prioridade</td><td colspan=3>Lead time médio (dias)</td><td colspan=2>SLA cumprido</td><td colspan=2>Pior espera (dias)</td></tr><tr class="bg-slate-50 font-semibold"><td>Sem Kanban</td><td>Com Kanban</td><td>Variação</td><td>Sem</td><td>Com</td><td>Sem</td><td>Com</td></tr>';
  for(const k of ['urgente','alta','media','baixa','todos']){const v=(b[k].lead-a[k].lead)/a[k].lead*100;
   h+=`<tr class="border-t ${k==='urgente'?'bg-red-50 font-bold':''}"><td class="p-2 text-left">${k==='todos'?'Todos':NOMES[k]}</td><td>${f(a[k].lead)}</td><td>${f(b[k].lead)}</td><td class="${v<0?'text-emerald-700':v>0?'text-amber-700':''} font-bold">${v>0?'+':''}${f(v,0)}%</td><td>${f(a[k].ok*100,0)}%</td><td>${f(b[k].ok*100,0)}%</td><td>${a[k].max}</td><td>${b[k].max}</td></tr>`}
  $('tbl').innerHTML=h}
 function robust(cap){const N=500;let m={fl:0,kl:0,fo:0,ko:0,bf:0,bk:0};
  for(let s=1;s<=N;s++){const g=gen(s),a=stats(run(g,'fifo',cap)),b=stats(run(g,'kanban',cap));m.fl+=a.urgente.lead;m.kl+=b.urgente.lead;m.fo+=a.urgente.ok;m.ko+=b.urgente.ok;m.bf+=a.baixa.lead;m.bk+=b.baixa.lead}
  const f=x=>(x/N).toFixed(1).replace('.',','),p=x=>Math.round(x/N*100);
- $('robust').innerHTML=`<b>Teste de robustez (${N} cenários aleatórios, mesma capacidade):</b> urgentes esperam em média ${f(m.fl)} → ${f(m.kl)} dia(s); SLA dos urgentes ${p(m.fo)}% → ${p(m.ko)}%; em contrapartida, pedidos de prioridade baixa passam de ${f(m.bf)} → ${f(m.bk)} dias (ainda dentro dos 7 dias). <i>Com capacidade igual à demanda (20/dia) não há fila e a diferença desaparece: o Kanban resolve o problema quando há sobrecarga.</i>`}
+ $('robust').innerHTML=`<b>Teste de robustez (${N} cenários aleatórios, mesma capacidade):</b> urgentes esperam em média ${f(m.fl)} → ${f(m.kl)} dia(s); SLA dos urgentes ${p(m.fo)}% → ${p(m.ko)}%; a baixa prioridade passa de ${f(m.bf)} → ${f(m.bk)} dias (limite de 7). <i>Com capacidade igual à demanda (20/dia) não há fila e a diferença desaparece: o Kanban resolve o problema quando há sobrecarga.</i>`}
+document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
 $('day').oninput=render;$('cap').onchange=setup;$('seed').onchange=setup;
 $('play').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('play').innerHTML='<i class="fa-solid fa-play"></i> Reproduzir';return}
  $('play').innerHTML='<i class="fa-solid fa-pause"></i> Pausar';if(+$('day').value>=9)$('day').value=0;render();
